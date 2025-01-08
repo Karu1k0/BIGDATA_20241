@@ -1,4 +1,6 @@
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import from_json
+from schema import MOVIE_SCHEMA
 import os
 from dotenv import load_dotenv
 
@@ -35,3 +37,14 @@ spark = SparkSession.builder \
     .getOrCreate()
 
 spark.sparkContext.setLogLevel("Error")
+
+df_msg = spark \
+    .readStream \
+    .format("kafka") \
+    .option("kafka.bootstrap.servers", KAFKA_BROKER1) \
+    .option("subscribe", MOVIE_TOPIC) \
+    .option("startingOffsets", "latest") \
+    .load()
+
+df_msg = df_msg.selectExpr("CAST(value AS STRING)") \
+               .select(from_json("value", MOVIE_SCHEMA).alias('movie'))
