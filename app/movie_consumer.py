@@ -3,6 +3,7 @@ from pyspark.sql.functions import from_json
 from schema import MOVIE_SCHEMA
 import os
 from dotenv import load_dotenv
+from pyspark.sql.functions import year, expr, col, to_date, when
 
 load_dotenv()
 
@@ -48,3 +49,22 @@ df_msg = spark \
 
 df_msg = df_msg.selectExpr("CAST(value AS STRING)") \
                .select(from_json("value", MOVIE_SCHEMA).alias('movie'))
+
+
+df_movie = df_msg.select('movie.*')
+
+df_movie = df_movie.withColumn("popularity", expr("cast(popularity as double)"))
+df_movie = df_movie.withColumn("vote_average", expr("cast(vote_average as double)"))
+df_movie = df_movie.withColumn("budget", expr("cast(budget as double)"))
+df_movie = df_movie.withColumn("revenue", expr("cast(revenue as double)"))
+df_movie = df_movie.withColumn("runtime", expr("cast(runtime as double)"))
+
+df_movie = df_movie.withColumn("genres", col("genres.name"))
+df_movie = df_movie.withColumn("production_companies", 
+            expr("TRANSFORM(production_companies, x -> struct(x.name, x.origin_country))"))
+df_movie = df_movie.withColumn("production_countries", col("production_countries.name"))
+
+df_movie = df_movie.withColumn("release_year", year(to_date("release_date", "yyyy-MM-dd")))
+df_movie = df_movie.withColumn(
+        "profit_ratio",
+        when(col("budget") > 0, (col("revenue") - col("budget")) / col("budget")).otherwise(None))
